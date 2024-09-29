@@ -14,6 +14,9 @@ MicroBit uBit;
 #define PIN_PATROL_LEFT uBit.io.P13
 #define PIN_PATROL_RIGHT uBit.io.P14
 
+int8_t runLeftMotor = 1;
+int8_t runRightMotor = 1;
+
 //returns 0 if reading black and 1 if reading white
 int8_t read_patrol_light(NRF52Pin pin) {
     int8_t value = 2;
@@ -47,6 +50,18 @@ void run_led_lights() {
             turn_led_off(PIN_LED_RIGHT);
         }
 
+        if(left == 0 && right == 1) {
+            runLeftMotor = 0;
+            uBit.sleep(100);
+            runLeftMotor = 1;
+        }
+
+        if(right == 0 && left == 1) {
+            runRightMotor = 0;
+            uBit.sleep(100);
+            runRightMotor = 1;
+        }
+
         uBit.sleep(10);
     }
 }
@@ -71,23 +86,32 @@ void run_motors(uint8_t motor, uint8_t direction, int duration) {
     //uBit.display.scroll(ret);
 }
 
+void stop_motors(uint8_t motor) {
+    uint8_t buf[3];
+
+    buf[0] = motor;
+    buf[1] = 0;
+    buf[2] = 0; 
+    uBit.i2c.write( 0x20, buf, 3); 
+}
+
 void run_left_motor() {
-    int x = 0;
     while(1) {
-        if(x == 0) {
+        if(runLeftMotor == 1) {
             run_motors(MOTOR_LEFT,DIRECTION_FORWARD,10);
-            x = 1;
+        } else {
+            stop_motors(MOTOR_LEFT);
         }
         uBit.sleep(10);
     }
 }
 
 void run_right_motor() {
-    int x = 0;
     while(1) {
-        if(x == 0) {
+        if(runRightMotor == 1) {
             run_motors(MOTOR_RIGHT,DIRECTION_FORWARD,10);
-            x = 1;
+        } else {
+            stop_motors(MOTOR_RIGHT);
         }
         uBit.sleep(10);
     }
