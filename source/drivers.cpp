@@ -11,6 +11,27 @@ int8_t read_greyscale_sensor_right() {
     return GREYSCALE_PIN_RIGHT.getDigitalValue();
 }
 
+int8_t read_ultrasonic()
+{
+
+    TRIG_PIN.setDigitalValue(0);
+    TRIG_PIN.setDigitalValue(1);
+    uBit->sleep(1);
+    TRIG_PIN.setDigitalValue(0);
+
+    unsigned long time = uBit-> systemTime();
+
+    while(ECHO_PIN.getDigitalValue())
+    {
+        if(uBit->systemTime()-time > 1)
+        {
+            return 0;
+        }
+    }
+
+    return  1;
+}
+
 void turn_left_led_on() {
     LED_PIN_LEFT.setDigitalValue(1);
 }

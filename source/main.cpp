@@ -1,8 +1,8 @@
 #include "MicroBit.h"
 #include "drivers.h"
-
 static MicroBit uBit;
 
+#define STATE_MOVE_STOP -1
 #define STATE_MOVE_FOWARD 0
 #define STATE_TURN_LEFT 1
 #define STATE_TURN_RIGHT 2
@@ -11,6 +11,7 @@ static MicroBit uBit;
 
 int8_t currentState = 0;
 int8_t previousTurningState = 0;
+int8_t object_detected = 0;
 
 //flashes the led lights
 void run_led_lights() {
@@ -50,6 +51,9 @@ void run_left_motor() {
                 break;
             case STATE_TURN_CLOCKWISE:
                 break;
+            case STATE_MOVE_STOP:
+                 stop_motor_left();
+                 break;
         }
 
         uBit.sleep(1);
@@ -76,6 +80,9 @@ void run_right_motor() {
                 start_motor_left(DIRECTION_FORWARD, 0x20);
                 start_motor_right(DIRECTION_BACKWARD, 0x20);
                 break;
+            case STATE_MOVE_STOP:
+                 stop_motor_right();
+                 break;
         }
         uBit.sleep(1);
     }
@@ -93,8 +100,11 @@ void manage_direction() {
         int8_t left = read_greyscale_sensor_left();
         int8_t right = read_greyscale_sensor_right();
 
-        
-        if(left == 0 && right == 0) {
+        if (object_detected==1)
+        {
+            currentState = STATE_MOVE_STOP;
+        }
+        else if(left == 0 && right == 0) {
             currentState = STATE_MOVE_FOWARD;
         } else if(left == 0 && right == 1) {
             //turn left
@@ -118,12 +128,27 @@ void manage_direction() {
     }
 }
 
+void poll_ultrasonic()
+{
+while(1)
+{
+    object_detected = read_ultrasonic();
+
+    uBit.sleep(50);
+}
+}
+
+
 int main()
 {
     on_start(&uBit);
+
     create_fiber(manage_direction);
     create_fiber(run_left_motor);
     create_fiber(run_right_motor);
     create_fiber(run_led_lights);
+    create_fiber(poll_ultrasonic);
+    
+
     release_fiber();
 }

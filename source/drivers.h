@@ -12,10 +12,15 @@
 #define GREYSCALE_PIN_LEFT (*uBit).io.P13
 #define GREYSCALE_PIN_RIGHT (*uBit).io.P14
 
+#define TRIG_PIN (*uBit).io.P1
+#define ECHO_PIN (*uBit).io.P2
+
 //returns 0 if reading black and 1 if reading white
 int8_t read_greyscale_sensor_left();
 
 int8_t read_greyscale_sensor_right();
+
+int8_t read_ultrasonic();
 
 void turn_left_led_on();
 
