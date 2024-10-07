@@ -58,27 +58,27 @@ void stop_both_motors() {
     stop_motor_right();
 }
 
-void start_motor_left(uint8_t direction) {
+void start_motor_left(uint8_t direction, uint8_t speed) {
     uint8_t buf[3];
     buf[0] = MOTOR_LEFT;
     buf[1] = direction;
     //speed of the motors
-    buf[2] = 0x40; 
+    buf[2] = speed; 
     (*uBit).i2c.write( 0x20, buf, 3); 
 }
 
-void start_motor_right(uint8_t direction) {
+void start_motor_right(uint8_t direction, uint8_t speed) {
     uint8_t buf[3];
     buf[0] = MOTOR_RIGHT;
     buf[1] = direction;
     //speed of the motors
-    buf[2] = 0x40; 
+    buf[2] = speed; 
     (*uBit).i2c.write( 0x20, buf, 3); 
 }
 
-void start_both_motors(uint8_t motor, uint8_t direction) {
-    start_motor_left(direction);
-    start_motor_right(direction);
+void start_both_motors(uint8_t direction, uint8_t speed) {
+    start_motor_left(direction, speed);
+    start_motor_right(direction, speed);
 }
 
 void on_start(MicroBit* microbit) {

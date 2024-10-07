@@ -35,10 +35,10 @@ void stop_motor_right();
 
 void stop_both_motors();
 
-void start_motor_left(uint8_t direction);
+void start_motor_left(uint8_t direction, uint8_t speed);
 
-void start_motor_right(uint8_t direction);
+void start_motor_right(uint8_t direction, uint8_t speed);
 
-void start_both_motors(uint8_t motor, uint8_t direction);
+void start_both_motors(uint8_t direction, uint8_t speed);
 
 void on_start(MicroBit* uBit);
