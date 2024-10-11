@@ -147,22 +147,15 @@ void manage_direction()
         int8_t left = read_greyscale_sensor_left();
         int8_t right = read_greyscale_sensor_right();
 
-        if (object_detected == 1)
-        {
-            currentState = STATE_MOVE_STOP;
-        }
-        else if (currentTurningBias == TURNING_BIAS_LEFT)
-        {
+        if(currentTurningBias == TURNING_BIAS_LEFT) {
 
-            // white on left and back on right
-            if (left == 1 && right == 0)
-            {
-                // if(isRotating == 1) {
-                //     rightSeenBlack = 1;
-                // }
-
-                if (isRotating == 0)
-                {
+            //white on left and back on right
+            if(left == 1 && right == 0) {
+                if(isRotating == 1) {
+                    uBit.display.image.setPixelValue(0,0,255);
+                    currentTurningBias = TURNING_BIAS_RIGHT;
+                    isRotating = 0;
+                } else {
                     currentState = STATE_MOVE_FOWARD;
                 }
             }
@@ -171,19 +164,12 @@ void manage_direction()
             if (left == 0 && right == 0)
             {
                 currentState = STATE_TURN_LEFT;
-                if (isRotating == 1)
-                {
-                    currentTurningBias = TURNING_BIAS_RIGHT;
-                    isRotating = 0;
-                }
             }
 
-            // black on left and white on right
-            if (left == 0 && right == 1)
-            {
-                // currentState = STATE_TURN_LEFT;
+            //black on left and white on right, at an intersection
+            if(left == 0 && right == 1) {
                 isRotating = 1;
-                currentState = STATE_TURN_ANTICLOCKWISE;
+                currentState = STATE_TURN_LEFT;
             }
 
             // white on both
@@ -195,52 +181,36 @@ void manage_direction()
         else if (currentTurningBias == TURNING_BIAS_RIGHT)
         {
 
-            // black on left and white on right
-            if (left == 0 && right == 1)
-            {
-                if (isRotating == 1 && hasSeenRight == 0)
-                {
-                    hasSeenRight = 1;
-                    currentState = STATE_TURN_RIGHT;
-                }
-                else if (isRotating == 1)
-                {
-                    currentState = STATE_TURN_RIGHT;
-                }
-                else
-                {
+        } else if(currentTurningBias == TURNING_BIAS_RIGHT) {
+            //white on left and back on right
+            if(left == 1 && right == 0) {
+                if(isRotating == 1) {
+                    uBit.display.image.setPixelValue(1,1,255);
+                    currentTurningBias = TURNING_BIAS_LEFT;
+                    isRotating = 0;
+                } else {
                     currentState = STATE_MOVE_FOWARD;
                 }
             }
-            else if (isRotating == 1 && hasSeenRight == 1)
-            {
-                hasSeenRight = 0;
-                isRotating = 0;
-                currentTurningBias = TURNING_BIAS_LEFT;
+
+            //black on both
+            if(left == 0 && right == 0) {
+                currentState = STATE_TURN_LEFT;
             }
 
-            if (isRotating == 0)
-            {
-                // white on left and back on right
-                if (left == 1 && right == 0)
-                {
-                    // currentState = STATE_TURN_RIGHT;
-                    isRotating = 1;
-                    currentState = STATE_TURN_CLOCKWISE;
-                }
-
-                // black on both
-                if (left == 0 && right == 0)
-                {
-                    currentState = STATE_TURN_RIGHT;
-                }
-
-                // white on both
-                if (left == 1 && right == 1)
-                {
-                    currentState = STATE_TURN_LEFT;
-                }
+            //black on left and white on right, at an intersection
+            if(left == 0 && right == 1) {
+                isRotating = 1;
+                currentState = STATE_TURN_RIGHT;
+                uBit.sleep(1200);
             }
+            
+            //white on both
+            if(left == 1 && right == 1) {
+                currentState = STATE_TURN_RIGHT;
+            }
+    
+            
         }
 
         uBit.sleep(5);
