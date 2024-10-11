@@ -36,20 +36,28 @@ int16_t afterTurnSleepTime = 600;
  * goes high if the sensor is seeing white, otherwise
  * low
  */
-void run_led_lights() {
-    while(1) {
+void run_led_lights()
+{
+    while (1)
+    {
         int8_t left = read_greyscale_sensor_left();
         int8_t right = read_greyscale_sensor_right();
 
-        if(left == 1) {
+        if (left == 1)
+        {
             turn_left_led_on();
-        } else if(left == 0) {
+        }
+        else if (left == 0)
+        {
             turn_left_led_off();
         }
 
-        if(right == 1) {
+        if (right == 1)
+        {
             turn_right_led_on();
-        } else if(right == 0) {
+        }
+        else if (right == 0)
+        {
             turn_right_led_off();
         }
 
@@ -61,29 +69,32 @@ void run_led_lights() {
  * Manages the behaviour of the left motor
  * based on the current state
  */
-void run_left_motor() {
-    while(1) {
-        switch(currentState) {
-            case STATE_MOVE_FOWARD:
-                start_motor_left(DIRECTION_FORWARD, 0x30);
-                break;
-            case STATE_TURN_LEFT:
-                stop_motor_left();
-                break;
-            case STATE_TURN_RIGHT:
-                start_motor_left(DIRECTION_FORWARD, 0x20);
-                break;
-            case STATE_TURN_ANTICLOCKWISE:
-                start_motor_right(DIRECTION_FORWARD, 0x25);
-                start_motor_left(DIRECTION_BACKWARD, 0x20);
-                break;
-            case STATE_TURN_CLOCKWISE:
-                start_motor_left(DIRECTION_FORWARD, 0x25);
-                start_motor_right(DIRECTION_BACKWARD, 0x20);
-                break;
-            case STATE_MOVE_STOP:
-                 stop_motor_left();
-                 break;
+void run_left_motor()
+{
+    while (1)
+    {
+        switch (currentState)
+        {
+        case STATE_MOVE_FOWARD:
+            start_motor_left(DIRECTION_FORWARD, 0x30);
+            break;
+        case STATE_TURN_LEFT:
+            stop_motor_left();
+            break;
+        case STATE_TURN_RIGHT:
+            start_motor_left(DIRECTION_FORWARD, 0x20);
+            break;
+        case STATE_TURN_ANTICLOCKWISE:
+            start_motor_right(DIRECTION_FORWARD, 0x25);
+            start_motor_left(DIRECTION_BACKWARD, 0x20);
+            break;
+        case STATE_TURN_CLOCKWISE:
+            start_motor_left(DIRECTION_FORWARD, 0x25);
+            start_motor_right(DIRECTION_BACKWARD, 0x20);
+            break;
+        case STATE_MOVE_STOP:
+            stop_motor_left();
+            break;
         }
 
         uBit.sleep(1);
@@ -94,29 +105,32 @@ void run_left_motor() {
  * Manages the behaviour of the right motor
  * based on the current state
  */
-void run_right_motor() {
-    while(1) {
-        switch(currentState) {
-            case STATE_MOVE_FOWARD:
-                start_motor_right(DIRECTION_FORWARD, 0x25);
-                break;
-            case STATE_TURN_LEFT:
-                start_motor_right(DIRECTION_FORWARD, 0x15);
-                break;
-            case STATE_TURN_RIGHT:
-                stop_motor_right();
-                break;
-            case STATE_TURN_ANTICLOCKWISE:
-                start_motor_right(DIRECTION_FORWARD, 0x25);
-                start_motor_left(DIRECTION_BACKWARD, 0x20);
-                break;
-            case STATE_TURN_CLOCKWISE:
-                start_motor_left(DIRECTION_FORWARD, 0x25);
-                start_motor_right(DIRECTION_BACKWARD, 0x20);
-                break;
-            case STATE_MOVE_STOP:
-                 stop_motor_right();
-                 break;
+void run_right_motor()
+{
+    while (1)
+    {
+        switch (currentState)
+        {
+        case STATE_MOVE_FOWARD:
+            start_motor_right(DIRECTION_FORWARD, 0x25);
+            break;
+        case STATE_TURN_LEFT:
+            start_motor_right(DIRECTION_FORWARD, 0x15);
+            break;
+        case STATE_TURN_RIGHT:
+            stop_motor_right();
+            break;
+        case STATE_TURN_ANTICLOCKWISE:
+            start_motor_right(DIRECTION_FORWARD, 0x25);
+            start_motor_left(DIRECTION_BACKWARD, 0x20);
+            break;
+        case STATE_TURN_CLOCKWISE:
+            start_motor_left(DIRECTION_FORWARD, 0x25);
+            start_motor_right(DIRECTION_BACKWARD, 0x20);
+            break;
+        case STATE_MOVE_STOP:
+            stop_motor_right();
+            break;
         }
         uBit.sleep(1);
     }
@@ -126,87 +140,106 @@ void run_right_motor() {
  * Manages the states that dictate which direction the
  * motors will move in
  */
-void manage_direction() {
-    while(1) {
+void manage_direction()
+{
+    while (1)
+    {
         int8_t left = read_greyscale_sensor_left();
         int8_t right = read_greyscale_sensor_right();
 
-         if (object_detected==1)
+        if (object_detected == 1)
         {
             currentState = STATE_MOVE_STOP;
-        } else
+        }
+        else if (currentTurningBias == TURNING_BIAS_LEFT)
+        {
 
-        if(currentTurningBias == TURNING_BIAS_LEFT) {
-            
-            //white on left and back on right
-            if(left == 1 && right == 0) {
-               // if(isRotating == 1) {
-               //     rightSeenBlack = 1;
-               // }
+            // white on left and back on right
+            if (left == 1 && right == 0)
+            {
+                // if(isRotating == 1) {
+                //     rightSeenBlack = 1;
+                // }
 
-                if(isRotating == 0) {
+                if (isRotating == 0)
+                {
                     currentState = STATE_MOVE_FOWARD;
                 }
-            } 
+            }
 
-            //black on both
-            if(left == 0 && right == 0) {
+            // black on both
+            if (left == 0 && right == 0)
+            {
                 currentState = STATE_TURN_LEFT;
-                if(isRotating == 1) {
+                if (isRotating == 1)
+                {
                     currentTurningBias = TURNING_BIAS_RIGHT;
                     isRotating = 0;
                 }
             }
 
-            //black on left and white on right
-            if(left == 0 && right == 1) {
-                //currentState = STATE_TURN_LEFT;
+            // black on left and white on right
+            if (left == 0 && right == 1)
+            {
+                // currentState = STATE_TURN_LEFT;
                 isRotating = 1;
                 currentState = STATE_TURN_ANTICLOCKWISE;
             }
-            
-            //white on both
-            if(left == 1 && right == 1) {
+
+            // white on both
+            if (left == 1 && right == 1)
+            {
                 currentState = STATE_TURN_RIGHT;
             }
-            
+        }
+        else if (currentTurningBias == TURNING_BIAS_RIGHT)
+        {
 
-        } else if(currentTurningBias == TURNING_BIAS_RIGHT) {
-
-            //black on left and white on right
-            if(left == 0 && right == 1) {
-                if(isRotating == 1 && hasSeenRight == 0) {
+            // black on left and white on right
+            if (left == 0 && right == 1)
+            {
+                if (isRotating == 1 && hasSeenRight == 0)
+                {
                     hasSeenRight = 1;
                     currentState = STATE_TURN_RIGHT;
-                } else if(isRotating == 1){
+                }
+                else if (isRotating == 1)
+                {
                     currentState = STATE_TURN_RIGHT;
-                } else {
+                }
+                else
+                {
                     currentState = STATE_MOVE_FOWARD;
                 }
-            } else if(isRotating == 1 && hasSeenRight == 1) {
+            }
+            else if (isRotating == 1 && hasSeenRight == 1)
+            {
                 hasSeenRight = 0;
                 isRotating = 0;
                 currentTurningBias = TURNING_BIAS_LEFT;
             }
 
-            if(isRotating == 0) {
-                    //white on left and back on right
-                if(left == 1 && right == 0) {
-                    //currentState = STATE_TURN_RIGHT;
+            if (isRotating == 0)
+            {
+                // white on left and back on right
+                if (left == 1 && right == 0)
+                {
+                    // currentState = STATE_TURN_RIGHT;
                     isRotating = 1;
                     currentState = STATE_TURN_CLOCKWISE;
                 }
 
-                //black on both
-                if(left == 0 && right == 0) {
+                // black on both
+                if (left == 0 && right == 0)
+                {
                     currentState = STATE_TURN_RIGHT;
                 }
-                
-                //white on both
-                if(left == 1 && right == 1) {
+
+                // white on both
+                if (left == 1 && right == 1)
+                {
                     currentState = STATE_TURN_LEFT;
                 }
-
             }
         }
 
@@ -216,14 +249,13 @@ void manage_direction() {
 
 void poll_ultrasonic()
 {
-while(1)
-{
-    object_detected = read_ultrasonic();
+    while (1)
+    {
+        object_detected = read_ultrasonic();
 
-    uBit.sleep(50);
+        uBit.sleep(50);
+    }
 }
-}
-
 
 int main()
 {
@@ -234,7 +266,6 @@ int main()
     create_fiber(run_right_motor);
     create_fiber(run_led_lights);
     create_fiber(poll_ultrasonic);
-    
 
     release_fiber();
 }
