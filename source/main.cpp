@@ -136,6 +136,8 @@ void run_right_motor()
     }
 }
 
+int8_t leftChecked = 0;
+
 /**
  * Manages the states that dictate which direction the
  * motors will move in
@@ -147,59 +149,74 @@ void manage_direction()
         int8_t left = read_greyscale_sensor_left();
         int8_t right = read_greyscale_sensor_right();
 
-        if(currentTurningBias == TURNING_BIAS_LEFT) {
+         if (object_detected == 1)
+        {
+            currentState = STATE_MOVE_STOP;
+        }
+        else if(currentTurningBias == TURNING_BIAS_LEFT) {
 
             //white on left and back on right
             if(left == 1 && right == 0) {
                 if(isRotating == 1) {
-                    uBit.display.image.setPixelValue(0,0,255);
                     currentTurningBias = TURNING_BIAS_RIGHT;
                     isRotating = 0;
                 } else {
                     currentState = STATE_MOVE_FOWARD;
                 }
+                leftChecked = 0;
             }
 
             // black on both
-            if (left == 0 && right == 0)
+            if (left == 0 && right == 0 && leftChecked)
             {
                 currentState = STATE_TURN_LEFT;
+                leftChecked = 0;
+            }
+            else{
+                leftChecked = 1;
             }
 
             //black on left and white on right, at an intersection
             if(left == 0 && right == 1) {
                 isRotating = 1;
                 currentState = STATE_TURN_LEFT;
+                leftChecked = 0;
             }
 
             // white on both
             if (left == 1 && right == 1)
             {
                 currentState = STATE_TURN_RIGHT;
+                leftChecked = 0;
             }
-        }
-        else if (currentTurningBias == TURNING_BIAS_RIGHT)
-        {
+        
+      
 
         } else if(currentTurningBias == TURNING_BIAS_RIGHT) {
             //white on left and back on right
             if(left == 1 && right == 0) {
                 if(isRotating == 1) {
-                    uBit.display.image.setPixelValue(1,1,255);
                     currentTurningBias = TURNING_BIAS_LEFT;
                     isRotating = 0;
                 } else {
                     currentState = STATE_MOVE_FOWARD;
                 }
+                leftChecked = 0;
             }
 
-            //black on both
-            if(left == 0 && right == 0) {
+            // black on both
+            if (left == 0 && right == 0 && leftChecked)
+            {
                 currentState = STATE_TURN_LEFT;
+                leftChecked = 0;
+            }
+            else{
+                leftChecked = 1;
             }
 
             //black on left and white on right, at an intersection
             if(left == 0 && right == 1) {
+                leftChecked = 0;
                 isRotating = 1;
                 currentState = STATE_TURN_RIGHT;
                 uBit.sleep(1200);
@@ -207,6 +224,7 @@ void manage_direction()
             
             //white on both
             if(left == 1 && right == 1) {
+                leftChecked = 0;
                 currentState = STATE_TURN_RIGHT;
             }
     
