@@ -9,11 +9,31 @@ static MicroBit uBit;
 #define STATE_TURN_CLOCKWISE 3
 #define STATE_TURN_ANTICLOCKWISE 4
 
+#define TURNING_BIAS_LEFT 1
+#define TURNING_BIAS_RIGHT 2
+
+int8_t currentTurningBias = TURNING_BIAS_RIGHT;
+
+int16_t manageDirectionSleepTime = 1;
+
 int8_t currentState = 0;
 int8_t previousTurningState = 0;
 int8_t object_detected = 0;
 
-//flashes the led lights
+int8_t leftSeenBlack = 0;
+int8_t rightSeenBlack = 0;
+
+int8_t rotating = 0;
+
+int16_t turningSleepTime = 1000;
+int16_t afterTurnSleepTime = 600;
+
+/**
+ * Runs the left and right led lights based
+ * on the output of the left and right sensors
+ * goes high if the sensor is seeing white, otherwise
+ * low
+ */
 void run_led_lights() {
     while(1) {
         int8_t left = read_greyscale_sensor_left();
@@ -35,21 +55,29 @@ void run_led_lights() {
     }
 }
 
+/**
+ * Manages the behaviour of the left motor
+ * based on the current state
+ */
 void run_left_motor() {
     while(1) {
         switch(currentState) {
             case STATE_MOVE_FOWARD:
-                start_motor_left(DIRECTION_FORWARD, 0x40);
+                start_motor_left(DIRECTION_FORWARD, 0x30);
                 break;
             case STATE_TURN_LEFT:
                 stop_motor_left();
                 break;
             case STATE_TURN_RIGHT:
-                start_motor_left(DIRECTION_FORWARD, 0x20);
+                start_motor_left(DIRECTION_FORWARD, 0x25);
                 break;
             case STATE_TURN_ANTICLOCKWISE:
+                start_motor_right(DIRECTION_FORWARD, 0x20);
+                start_motor_left(DIRECTION_BACKWARD, 0x20);
                 break;
             case STATE_TURN_CLOCKWISE:
+                start_motor_left(DIRECTION_FORWARD, 0x20);
+                start_motor_right(DIRECTION_BACKWARD, 0x20);
                 break;
             case STATE_MOVE_STOP:
                  stop_motor_left();
@@ -60,11 +88,15 @@ void run_left_motor() {
     }
 }
 
+/**
+ * Manages the behaviour of the right motor
+ * based on the current state
+ */
 void run_right_motor() {
     while(1) {
         switch(currentState) {
             case STATE_MOVE_FOWARD:
-                start_motor_right(DIRECTION_FORWARD, 0x30);
+                start_motor_right(DIRECTION_FORWARD, 0x25);
                 break;
             case STATE_TURN_LEFT:
                 start_motor_right(DIRECTION_FORWARD, 0x20);
@@ -88,15 +120,12 @@ void run_right_motor() {
     }
 }
 
-//next steps
-//if driving on black and then white is seen, rotate until black is seen anywhere,
-//then continue as normal
-
+/**
+ * Manages the states that dictate which direction the
+ * motors will move in
+ */
 void manage_direction() {
     while(1) {
-        //if steep corner, reverse a little bit for more leeway
-        //if steep corner turning right, turn off left motor turn on right motor backwards
-        //if steep corner turning left, turn off right motor turn on left motor backwards
         int8_t left = read_greyscale_sensor_left();
         int8_t right = read_greyscale_sensor_right();
 
@@ -104,26 +133,41 @@ void manage_direction() {
         {
             currentState = STATE_MOVE_STOP;
         }
-        else if(left == 0 && right == 0) {
-            currentState = STATE_MOVE_FOWARD;
-        } else if(left == 0 && right == 1) {
-            //turn left
-            currentState = STATE_TURN_LEFT;
-            previousTurningState = currentState;
-        } else if(right == 0 && left == 1) {
-            //turn right
-            currentState = STATE_TURN_RIGHT;
-            previousTurningState = currentState;
-        } else if(right == 1 && left == 1) {
-            //looking at white right now
-            if(previousTurningState == STATE_TURN_LEFT) {
-                //maybe overshot a left corner?
+        else if(right == 1 && left == 1) {
+            //white space has been reached, determine which direction
+            //the wheels should turn
+            if(currentTurningBias == TURNING_BIAS_LEFT) {
                 currentState = STATE_TURN_ANTICLOCKWISE;
-            } else if(previousTurningState == STATE_TURN_RIGHT) {
+                currentTurningBias = TURNING_BIAS_RIGHT;
+                //sleep for a bit while the wheels rotate
+                //to avoid "noise" on the sensors
+                uBit.sleep(turningSleepTime);
+                currentState = STATE_TURN_RIGHT;
+                uBit.sleep(afterTurnSleepTime);
+            } else if(currentTurningBias == TURNING_BIAS_RIGHT) {
                 currentState = STATE_TURN_CLOCKWISE;
+                currentTurningBias = TURNING_BIAS_LEFT;
+                //sleep for a bit while the wheels rotate
+                //to avoid "noise" on the sensors
+                uBit.sleep(turningSleepTime);
+                currentState = STATE_TURN_LEFT;
+                uBit.sleep(afterTurnSleepTime);
+            }
+        } else {
+            //looking at black, move forward
+            if(left == 0 && right == 0) {
+                currentState = STATE_MOVE_FOWARD;
+            } else if(left == 0 && right == 1) {
+                //turn left to try and recenter
+                currentState = STATE_TURN_LEFT;
+                previousTurningState = currentState;
+                
+            } else if(right == 0 && left == 1) {
+                //turn right to try and recenter
+                currentState = STATE_TURN_RIGHT;
+                previousTurningState = currentState;
             }
         }
-
         uBit.sleep(1);
     }
 }
