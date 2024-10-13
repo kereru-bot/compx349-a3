@@ -177,15 +177,16 @@ void follow_line() {
             currentState = STATE_MOVE_FOWARD;
             isRotating = 0;
         }
-
+        
+        //likely at an intersection
         if(left == 0 && right == 1) {
-            //at an intersection
             if(isRotating == 0) {
                 currentState = STATE_TURN_LEFT;
                 uBit.sleep(300);
             }
         }
 
+        //both looking at white, rotate by default
         if(left == 1 && right == 1) {
             if(isRotating == 0) {
                 currentState = STATE_TURN_RIGHT;
@@ -196,6 +197,10 @@ void follow_line() {
     }
 }
 
+/**
+ * Manages the direction for the microbit for
+ * going straight through intersections
+ */
 void manage_direction_straight() {
     int8_t isRotating = 0;
     int8_t left = 0;
@@ -209,23 +214,22 @@ void manage_direction_straight() {
 
         //both seeing black
         if(left == 0 && right == 0) {
-            //either it needs left adjustment
-            //or its at an intersection
-            //or its at a sharp corner
+            //might need adjustment on the line
             if(testedLeft == 1) {
                 currentState = STATE_TURN_LEFT;
                 uBit.sleep(200);
                 testedLeft = 0;
             } else {
+                //testing to see if it's on a black line or at a corner
                 currentState = STATE_MOVE_FOWARD;
                 uBit.sleep(500);
                 testedLeft = 1;
                 
+                //is at a corner, needs to readjust
                 if(read_greyscale_sensor_left() == 1 && read_greyscale_sensor_right() == 1) {
                     currentState = STATE_MOVE_BACKWARD;
                     isRotating = 1;
                     uBit.sleep(400);
-                    //at a corner
                     if(currentTurningBias == TURNING_BIAS_LEFT) {
                         currentState = STATE_TURN_LEFT;
                         currentTurningBias = TURNING_BIAS_RIGHT;
@@ -239,19 +243,21 @@ void manage_direction_straight() {
             }
         }
 
+        //go forward on the line
         if(left == 1 && right == 0) {
             currentState = STATE_MOVE_FOWARD;
             isRotating = 0;
         }
 
+        //might be at an intersection
         if(left == 0 && right == 1) {
-            //at an intersection
             if(isRotating == 0) {
                 currentState = STATE_MOVE_FOWARD;
                 uBit.sleep(300);
             }
         }
 
+        //seeing white, turn right by default
         if(left == 1 && right == 1) {
             if(isRotating == 0) {
                 currentState = STATE_TURN_RIGHT;
@@ -264,14 +270,13 @@ void manage_direction_straight() {
 
 /**
  * Manages the states that dictate which direction the
- * motors will move in
+ * motors will move in for turning at intersections
  */
 void manage_direction()
 {
     int8_t isRotating = 0;
     int8_t left = 0;
     int8_t right = 0;
-    int8_t previousState = -2;
     int8_t testedLeft = 0;
     int8_t leftTurnCycles = 0;
 
@@ -279,18 +284,21 @@ void manage_direction()
         left = read_greyscale_sensor_left();
         right = read_greyscale_sensor_right();
 
+        //something detected, stop the motor
         if (object_detected == 1) {
             currentState = STATE_MOVE_STOP;
         } else if(currentTurningBias == TURNING_BIAS_LEFT) {
 
             //white on left and back on right
             if(left == 1 && right == 0) {
+                //check if it's done a full intersection turn
+                //as it must've only seen black at intersection
                 if(leftTurnCycles > 30) {
                     uBit.display.image.setPixelValue(3,3,255);
-                    //mustve seen black and turned at intersection
                     currentTurningBias = TURNING_BIAS_RIGHT;
                     isRotating = 0;
                 } else if(isRotating == 1) {
+                    //else it might've been rotating, in which case it's finished
                     currentTurningBias = TURNING_BIAS_RIGHT;
                     isRotating = 0;
                 } else {
@@ -299,7 +307,7 @@ void manage_direction()
                 leftTurnCycles = 0;
             }
 
-            //black on both
+            //black on both, test if it's at an intersection
             if(left == 0 && right == 0) {
                 if(testedLeft == 1) {
                     currentState = STATE_TURN_LEFT;
@@ -315,11 +323,12 @@ void manage_direction()
                 currentState = STATE_TURN_LEFT;
             }
 
-            //white on both
+            //white on both, turn right by default
             if (left == 1 && right == 1) {
                 currentState = STATE_TURN_RIGHT;
             }
 
+            //increment this to find out if an intersection turn has been made
             if(currentState == STATE_TURN_LEFT) {
                 leftTurnCycles++;
             }
@@ -328,6 +337,7 @@ void manage_direction()
             //white on left and back on right
             if(left == 1 && right == 0) {
                 if(isRotating == 1) {
+                    //if it was rotating, it's finished now
                     currentTurningBias = TURNING_BIAS_LEFT;
                     isRotating = 0;
                 } else {
@@ -335,7 +345,7 @@ void manage_direction()
                 }
             }
 
-            //black on both
+            //black on both, test if it's an intersection
             if (left == 0 && right == 0) {
                 if(testedLeft == 1) {
                     currentState = STATE_TURN_LEFT;
@@ -363,6 +373,10 @@ void manage_direction()
     }
 }
 
+/**
+ * Reads from the ultrasonic sensor to see
+ * if an object has been detected
+ */
 void poll_ultrasonic()
 {
     while(1) {
@@ -372,12 +386,18 @@ void poll_ultrasonic()
     }
 }
 
+/**
+ * Used to choose to run the following line program 
+ */
 void follow_line_program(MicroBitEvent event) {
     if(buttonPressed == 0) {
         buttonPressed = 1;
     }
 }
 
+/**
+ * Used to choose to run the straight intersection program
+ */
 void straight_intersection_program(MicroBitEvent event) {
     if(buttonPressed == 0) {
         currentTurningBias = TURNING_BIAS_NONE;
@@ -385,6 +405,9 @@ void straight_intersection_program(MicroBitEvent event) {
     }
 }
 
+/**
+ * Used to choose to run the turn at intersection program
+ */
 void turn_intersection_program(MicroBitEvent event) {
     if(buttonPressed == 0) {
         currentTurningBias = TURNING_BIAS_LEFT;
@@ -394,15 +417,15 @@ void turn_intersection_program(MicroBitEvent event) {
 
 int main()
 {   
-
+    //initialise microbit
     on_start(&uBit);
 
-    //uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB,MICROBIT_BUTTON_EVT_CLICK,);
+    //set up event handlers to choose program to run
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_A,MICROBIT_BUTTON_EVT_CLICK,straight_intersection_program);
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_B,MICROBIT_BUTTON_EVT_CLICK,turn_intersection_program);
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB,MICROBIT_BUTTON_EVT_CLICK,follow_line_program);
 
-
+    //needs something to do while waiting or compiler will get rid of the loop :(
     while(buttonPressed == 0) {
         uBit.display.image.setPixelValue(1,1,255);
         uBit.sleep(50);
@@ -422,6 +445,7 @@ int main()
         uBit.display.image.setPixelValue(2,4,255);
     }
 
+    //run fibers for different functions
     create_fiber(run_left_motor);
     create_fiber(run_right_motor);
     create_fiber(run_led_lights);

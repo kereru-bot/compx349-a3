@@ -15,8 +15,6 @@
 #define TRIG_PIN (*uBit).io.P1
 #define ECHO_PIN (*uBit).io.P2
 
-
-//returns 0 if reading black and 1 if reading white
 int8_t read_greyscale_sensor_left();
 
 int8_t read_greyscale_sensor_right();
