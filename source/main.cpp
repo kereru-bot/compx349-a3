@@ -105,7 +105,7 @@ void run_right_motor()
         switch (currentState)
         {
         case STATE_MOVE_FOWARD:
-            start_motor_right(DIRECTION_FORWARD, 0x25);
+            start_motor_right(DIRECTION_FORWARD, 0x27);
             break;
         case STATE_TURN_LEFT:
             start_motor_right(DIRECTION_FORWARD, 0x25);
@@ -132,16 +132,75 @@ void run_right_motor()
     }
 }
 
+/**
+ * Code for following a black line, will try to 
+ * adjust itself if it overshoots a line
+ */
+void follow_line() {
+    int8_t isRotating = 0;
+    int8_t left = 0;
+    int8_t right = 0;
+    int8_t testedLeft = 0;
+
+    while(1) {
+        left = read_greyscale_sensor_left();
+        right = read_greyscale_sensor_right();
+
+        //both seeing black
+        if(left == 0 && right == 0) {
+            if(isRotating == 0) {
+                if(testedLeft == 1) {
+                    //must just need an adjustment on the line
+                    currentState = STATE_TURN_LEFT;
+                    uBit.sleep(250);
+                    testedLeft = 0;
+                } else {
+                    //test to see if it's on a black line or if it's at a corner
+                    currentState = STATE_MOVE_FOWARD;
+                    uBit.sleep(550);
+                    testedLeft = 1;
+                    
+                    //a corner has been reached, readjust to get back onto the line
+                    if(read_greyscale_sensor_left() == 1 && read_greyscale_sensor_right() == 1) {
+                        currentState = STATE_MOVE_BACKWARD;
+                        uBit.sleep(800);
+                        currentState = STATE_TURN_LEFT;
+                        isRotating = 1;
+                        uBit.sleep(150);
+                    }
+                }
+            } 
+        }
+
+        //follow the left side of the line
+        if(left == 1 && right == 0) {
+            currentState = STATE_MOVE_FOWARD;
+            isRotating = 0;
+        }
+
+        if(left == 0 && right == 1) {
+            //at an intersection
+            if(isRotating == 0) {
+                currentState = STATE_TURN_LEFT;
+                uBit.sleep(300);
+            }
+        }
+
+        if(left == 1 && right == 1) {
+            if(isRotating == 0) {
+                currentState = STATE_TURN_RIGHT;
+            }
+        }
+
+        uBit.sleep(5);
+    }
+}
 
 void manage_direction_straight() {
     int8_t isRotating = 0;
     int8_t left = 0;
     int8_t right = 0;
-    int8_t previousState = -2;
     int8_t testedLeft = 0;
-    int8_t prevLeft = 0;
-    int8_t prevRight = 0;
-    int8_t testedWhite = 0;
     currentTurningBias = TURNING_BIAS_LEFT;
 
     while(1) {
@@ -155,7 +214,7 @@ void manage_direction_straight() {
             //or its at a sharp corner
             if(testedLeft == 1) {
                 currentState = STATE_TURN_LEFT;
-                uBit.sleep(100);
+                uBit.sleep(200);
                 testedLeft = 0;
             } else {
                 currentState = STATE_MOVE_FOWARD;
@@ -170,9 +229,11 @@ void manage_direction_straight() {
                     if(currentTurningBias == TURNING_BIAS_LEFT) {
                         currentState = STATE_TURN_LEFT;
                         currentTurningBias = TURNING_BIAS_RIGHT;
+                        uBit.sleep(200);
                     } else {
                         currentState = STATE_TURN_RIGHT;
                         currentTurningBias = TURNING_BIAS_LEFT;
+                        uBit.sleep(200);
                     }
                 }
             }
@@ -311,6 +372,12 @@ void poll_ultrasonic()
     }
 }
 
+void follow_line_program(MicroBitEvent event) {
+    if(buttonPressed == 0) {
+        buttonPressed = 1;
+    }
+}
+
 void straight_intersection_program(MicroBitEvent event) {
     if(buttonPressed == 0) {
         currentTurningBias = TURNING_BIAS_NONE;
@@ -333,6 +400,8 @@ int main()
     //uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB,MICROBIT_BUTTON_EVT_CLICK,);
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_A,MICROBIT_BUTTON_EVT_CLICK,straight_intersection_program);
     uBit.messageBus.listen(MICROBIT_ID_BUTTON_B,MICROBIT_BUTTON_EVT_CLICK,turn_intersection_program);
+    uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB,MICROBIT_BUTTON_EVT_CLICK,follow_line_program);
+
 
     while(buttonPressed == 0) {
         uBit.display.image.setPixelValue(1,1,255);
@@ -341,10 +410,16 @@ int main()
         uBit.sleep(50);
     }
 
+    //determines which program to run
     if(currentTurningBias == TURNING_BIAS_NONE) {
         create_fiber(manage_direction_straight);
-    } else {
+        uBit.display.image.setPixelValue(0,4,255);
+    } else if(currentTurningBias == TURNING_BIAS_LEFT) {
         create_fiber(manage_direction);
+        uBit.display.image.setPixelValue(1,4,255);
+    } else {
+        create_fiber(follow_line);
+        uBit.display.image.setPixelValue(2,4,255);
     }
 
     create_fiber(run_left_motor);
