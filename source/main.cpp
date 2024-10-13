@@ -11,24 +11,13 @@ static MicroBit uBit;
 
 #define TURNING_BIAS_LEFT 1
 #define TURNING_BIAS_RIGHT 2
+#define TURNING_BIAS_NONE 3
 
-int8_t currentTurningBias = TURNING_BIAS_LEFT;
-
-int16_t manageDirectionSleepTime = 1;
-
+int8_t currentTurningBias = 0;
 int8_t currentState = 0;
-int8_t previousTurningState = 0;
 int8_t object_detected = 0;
 
-int8_t leftSeenBlack = 0;
-int8_t rightSeenBlack = 0;
-
-int8_t isRotating = 0;
-int8_t hasSeenLeft = 0;
-int8_t hasSeenRight = 0;
-
-int16_t turningSleepTime = 1000;
-int16_t afterTurnSleepTime = 600;
+int8_t buttonPressed = 0;
 
 /**
  * Runs the left and right led lights based
@@ -76,13 +65,13 @@ void run_left_motor()
         switch (currentState)
         {
         case STATE_MOVE_FOWARD:
-            start_motor_left(DIRECTION_FORWARD, 0x30);
+            start_motor_left(DIRECTION_FORWARD, 0x33);
             break;
         case STATE_TURN_LEFT:
             stop_motor_left();
             break;
         case STATE_TURN_RIGHT:
-            start_motor_left(DIRECTION_FORWARD, 0x20);
+            start_motor_left(DIRECTION_FORWARD, 0x35);
             break;
         case STATE_TURN_ANTICLOCKWISE:
             start_motor_right(DIRECTION_FORWARD, 0x25);
@@ -115,7 +104,7 @@ void run_right_motor()
             start_motor_right(DIRECTION_FORWARD, 0x25);
             break;
         case STATE_TURN_LEFT:
-            start_motor_right(DIRECTION_FORWARD, 0x15);
+            start_motor_right(DIRECTION_FORWARD, 0x25);
             break;
         case STATE_TURN_RIGHT:
             stop_motor_right();
@@ -136,7 +125,68 @@ void run_right_motor()
     }
 }
 
-int8_t leftChecked = 0;
+
+void manage_direction_straight() {
+    int8_t isRotating = 0;
+    int8_t left = 0;
+    int8_t right = 0;
+    int8_t previousState = -2;
+    int8_t testedLeft = 0;
+    int8_t prevLeft = 0;
+    int8_t prevRight = 0;
+    int8_t testedWhite = 0;
+    currentTurningBias = TURNING_BIAS_RIGHT;
+    while(1) {
+        left = read_greyscale_sensor_left();
+        right = read_greyscale_sensor_right();
+
+        //both seeing black
+        if(left == 0 && right == 0) {
+            if(isRotating == 1) {
+                if(currentTurningBias == TURNING_BIAS_LEFT) {
+                    currentTurningBias = TURNING_BIAS_RIGHT;
+                    isRotating = 0;
+                    testedWhite = 0;
+                } else {
+                    currentTurningBias = TURNING_BIAS_LEFT;
+                    isRotating = 0;
+                    testedWhite = 0;
+                }
+            }
+            currentState = STATE_MOVE_FOWARD;
+        }
+
+        if(left == 1 && right == 0) {
+            currentState = STATE_TURN_RIGHT;
+        }
+
+        if(left == 0 && right == 1) {
+            currentState = STATE_TURN_LEFT;
+        }
+
+        if(left == 1 && right == 1) {
+            if(testedWhite == 1) {
+                if(currentTurningBias == TURNING_BIAS_LEFT) {
+                    isRotating = 1;
+                    currentState = STATE_TURN_LEFT;
+                } else {
+                    isRotating = 1;
+                    currentState = STATE_TURN_RIGHT;
+                }
+            } else {
+                currentState = STATE_MOVE_FOWARD;
+                uBit.sleep(500);
+                testedWhite = 1;
+            }
+
+        }
+
+        previousState = currentState;
+        prevLeft = left;
+        prevRight = right;
+        uBit.sleep(5);
+    }
+}
 
 /**
  * Manages the states that dictate which direction the
@@ -144,53 +194,61 @@ int8_t leftChecked = 0;
  */
 void manage_direction()
 {
-    while (1)
-    {
-        int8_t left = read_greyscale_sensor_left();
-        int8_t right = read_greyscale_sensor_right();
+    int8_t isRotating = 0;
+    int8_t left = 0;
+    int8_t right = 0;
+    int8_t previousState = -2;
+    int8_t testedLeft = 0;
+    int8_t leftTurnCycles = 0;
 
-         if (object_detected == 1)
-        {
+    while (1) {
+        left = read_greyscale_sensor_left();
+        right = read_greyscale_sensor_right();
+
+        if (object_detected == 1) {
             currentState = STATE_MOVE_STOP;
-        }
-        else if(currentTurningBias == TURNING_BIAS_LEFT) {
+        } else if(currentTurningBias == TURNING_BIAS_LEFT) {
 
             //white on left and back on right
             if(left == 1 && right == 0) {
-                if(isRotating == 1) {
+                if(leftTurnCycles > 30) {
+                    uBit.display.image.setPixelValue(3,3,255);
+                    //mustve seen black and turned at intersection
+                    currentTurningBias = TURNING_BIAS_RIGHT;
+                    isRotating = 0;
+                } else if(isRotating == 1) {
                     currentTurningBias = TURNING_BIAS_RIGHT;
                     isRotating = 0;
                 } else {
                     currentState = STATE_MOVE_FOWARD;
                 }
-                leftChecked = 0;
+                leftTurnCycles = 0;
             }
 
-            // black on both
-            if (left == 0 && right == 0 && leftChecked)
-            {
-                currentState = STATE_TURN_LEFT;
-                leftChecked = 0;
-            }
-            else{
-                leftChecked = 1;
+            //black on both
+            if(left == 0 && right == 0) {
+                if(testedLeft == 1) {
+                    currentState = STATE_TURN_LEFT;
+                    testedLeft = 0;
+                } else {
+                    testedLeft = 1;
+                }
             }
 
             //black on left and white on right, at an intersection
             if(left == 0 && right == 1) {
                 isRotating = 1;
                 currentState = STATE_TURN_LEFT;
-                leftChecked = 0;
             }
 
-            // white on both
-            if (left == 1 && right == 1)
-            {
+            //white on both
+            if (left == 1 && right == 1) {
                 currentState = STATE_TURN_RIGHT;
-                leftChecked = 0;
             }
-        
-      
+
+            if(currentState == STATE_TURN_LEFT) {
+                leftTurnCycles++;
+            }
 
         } else if(currentTurningBias == TURNING_BIAS_RIGHT) {
             //white on left and back on right
@@ -201,34 +259,30 @@ void manage_direction()
                 } else {
                     currentState = STATE_MOVE_FOWARD;
                 }
-                leftChecked = 0;
             }
 
-            // black on both
-            if (left == 0 && right == 0 && leftChecked)
-            {
-                currentState = STATE_TURN_LEFT;
-                leftChecked = 0;
-            }
-            else{
-                leftChecked = 1;
-            }
+            //black on both
+            if (left == 0 && right == 0) {
+                if(testedLeft == 1) {
+                    currentState = STATE_TURN_LEFT;
+                    testedLeft = 0;
+                } else {
+                    testedLeft = 1;
+                }
+            } 
 
             //black on left and white on right, at an intersection
             if(left == 0 && right == 1) {
-                leftChecked = 0;
                 isRotating = 1;
                 currentState = STATE_TURN_RIGHT;
-                uBit.sleep(1200);
+                uBit.sleep(1000);
             }
             
             //white on both
             if(left == 1 && right == 1) {
-                leftChecked = 0;
                 currentState = STATE_TURN_RIGHT;
             }
     
-            
         }
 
         uBit.sleep(5);
@@ -237,19 +291,49 @@ void manage_direction()
 
 void poll_ultrasonic()
 {
-    while (1)
-    {
+    while(1) {
         object_detected = read_ultrasonic();
 
         uBit.sleep(50);
     }
 }
 
+void straight_intersection_program(MicroBitEvent event) {
+    if(buttonPressed == 0) {
+        currentTurningBias = TURNING_BIAS_NONE;
+        buttonPressed = 1;
+    }
+}
+
+void turn_intersection_program(MicroBitEvent event) {
+    if(buttonPressed == 0) {
+        currentTurningBias = TURNING_BIAS_LEFT;
+        buttonPressed = 1;
+    }
+}
+
 int main()
-{
+{   
+
     on_start(&uBit);
 
-    create_fiber(manage_direction);
+    //uBit.messageBus.listen(MICROBIT_ID_BUTTON_AB,MICROBIT_BUTTON_EVT_CLICK,);
+    uBit.messageBus.listen(MICROBIT_ID_BUTTON_A,MICROBIT_BUTTON_EVT_CLICK,straight_intersection_program);
+    uBit.messageBus.listen(MICROBIT_ID_BUTTON_B,MICROBIT_BUTTON_EVT_CLICK,turn_intersection_program);
+
+    while(buttonPressed == 0) {
+        uBit.display.image.setPixelValue(1,1,255);
+        uBit.sleep(50);
+        uBit.display.image.clear();
+        uBit.sleep(50);
+    }
+
+    if(currentTurningBias == TURNING_BIAS_NONE) {
+        create_fiber(manage_direction_straight);
+    } else {
+        create_fiber(manage_direction);
+    }
+
     create_fiber(run_left_motor);
     create_fiber(run_right_motor);
     create_fiber(run_led_lights);
